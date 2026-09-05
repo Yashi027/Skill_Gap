@@ -1,32 +1,89 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+import { createContext, useEffect, useState } from 'react';
+import api from '../api/client';
 
-const getToken = () => localStorage.getItem("token");
+export const AuthContext = createContext();
 
-export const api = async (path, { method = "GET", body, headers } = {}) => {
-  const token = getToken();
+export const AuthProvider = ({children}) => {
+  const [token, setToken] = useState(() => localStorage.getItem("token"));
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
+  const isUserLogin = async () => {
+      if(!token){
+        setAuthLoading(false);
+        return;
+      }
+      try {
+        const data = await api("/auth/me");
+        setUser(data.user);
+      } catch (error) {
+        localStorage.removeItem("token");
+        setToken(null);
+        setUser(null);
+      }finally{
+        setAuthLoading(false);
+      }
+    }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers
-    },
-    body: body ? JSON.stringify(body) : undefined
-  });
+  useEffect (() => {
+    isUserLogin();
+  },[])
 
-  let data = null;
-  try {
-    data = await res.json();
-  } catch {
-    // no JSON body
+  const register = async ({name,email,password}) => {
+    setAuthError("");
+    try {
+      const data = await api("/auth/register",{
+        method: "POST",
+        body: {name, email,password}
+      });
+      localStorage.setItem("token",data.token);
+      setToken(data.token);
+      setUser(data.user);
+      return data.user;
+    } catch (error) {
+      setAuthError(error.message);
+      throw error;
+    }
   }
 
-  if (!res.ok) {
-    throw new Error(data?.message || `Request failed (${res.status})`);
+  const login = async ({email,password}) => {
+    setAuthError("");
+    try {
+      const data = await api("/auth/login",{
+        method: "POST",
+        body: {email,password}
+      });
+      localStorage.setItem("token",data.token);
+      setToken(data.token);
+      setUser(data.user);
+      return data.user;
+    } catch (error) {
+      setAuthError(error.message);
+      throw error;
+    }
   }
 
-  return data;
-};
+  const logout = () => {
+    localStorage.removeItem("token");
+    setToken(null);
+    setUser(null);
+  }
 
-export default api;
+  return(
+    <AuthContext.Provider
+    value={{
+      token,
+      user,
+      setUser,
+      authLoading,
+      authError,
+      setAuthError,
+      isAuthenticated: Boolean(token && user),
+      register,
+      login,
+      logout
+    }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
