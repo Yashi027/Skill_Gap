@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
 
 const roadmapItemSchema = new mongoose.Schema({
     name:{
@@ -72,5 +71,22 @@ const userSchema = new mongoose.Schema({
         default: {}
     }
 },{timestamps: true})
+
+userSchema.methods.toProfileJSON = function() {
+    return {
+        id: this._id,
+        name: this.name,
+        email: this.email,
+        githubUsername: this.githubUsername,
+        selectedCareer: this.selectedCarrer,
+        skillRatings: Object.fromEntries(this.skillRatings || [])
+        roadmap: this.roadmap,
+        weeklyProgress: this.weeklyProgress,
+        streak: this.streak,
+        githubData: this.githubData,
+        skillEvidence: this.skillEvidence,
+        skillVerification: this.skillVerification
+    };
+};
 
 export default mongoose.model("User", userSchema);

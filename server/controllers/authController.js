@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import bcrypt from "bcryptjs";
 
 const signToken = (id) => 
     jwt.sign({id},process.env.JWT_SECRET,{
@@ -19,7 +20,8 @@ export const register = async (req,res) => {
         if(exist){
             return res.status(400).json({success: false, message: "An account with this mail is already registered"});
         }
-        const user = await User.create({name, email, password});
+        const hashedPassword = await bcrypt.hash(password,10);
+        const user = await User.create({name, email, password: hashedPassword});
         const token = signToken(user._id);
 
         res.status(201).json({token, success: true, message: "User registered successfully", user: user.toProfileJSON()});
@@ -35,9 +37,13 @@ export const login = async (req,res) => {
         if(!email || !password){
             return res.status(400).json({success: false, message: "Credentials required"});
         }
-        const user = await User.findOne({email: email}).select("+password");
-        if(!user || !(await user.comparePassword(password))){
+        const user = await User.findOne({email}).select("+password");
+        if(!user){
             return res.status(401).json({success: false, message: "Invalid credentials"});
+        }
+        const matchedPassword = await bcrypt.compare(password,user.password)
+        if(!matchedPassword){
+            return res.status(401).json({success: false, message: "Incorrect Password"})
         }
         const token = signToken(user._id);
         res.json({token,message: "Login Successful" ,user: user.toProfileJSON()});
