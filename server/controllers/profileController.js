@@ -1,3 +1,4 @@
+import { generateRoadmap, calculateProgress } from "../utils/roadmap";
 
 export const setCareer = async(req,res) => {
     try {
@@ -9,7 +10,12 @@ export const setCareer = async(req,res) => {
         const user = req.user;
         user.selectedCareer = selectedCareer;
         const ratings = Object.fromEntries(user.skillRatings || new Map());
-        
+        user.roadmap = generateRoadmap(selectedCareer, ratings);
+        await user.save();
+        return res.json({
+            user: user.toProfileJSON(),
+            progress: calculateProgress(user.roadmap, ratings)
+        });
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({success: false, message: error.message});
@@ -26,5 +32,13 @@ export const updateSkillRatings = async(req,res) => {
 }
 
 export const getProgress = async(req,res) => {
-    
-}
+    const user = req.user;
+    const ratings = Object.fromEntries(user.skillRatings || new Map());
+
+    return res.json({
+        progress: calculateProgress(user.roadmap, ratings),
+        weeklyProgress: user.weeklyProgress,
+        streak: user.streak,
+        roadmap: user.roadmap
+    });
+};
