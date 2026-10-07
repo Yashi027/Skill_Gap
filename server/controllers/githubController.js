@@ -33,17 +33,17 @@ const fetchContributionCalendar = async (githubUsername) => {
             `,
             variables: { login: githubUsername }
         };
-        const response = await fetch("https://api.github.com/graphql",{
+        const response = await fetch("https://api.github.com/graphql", {
             method: "POST",
-            headers:{
+            headers: {
                 "Content-Type": "application/json",
-                Authorization: "Bearer "+token
+                Authorization: "Bearer " + token
             },
             body: JSON.stringify(graphqlQuery)
         });
         const result = await response.json();
 
-        if(result.errors){
+        if (result.errors) {
             console.warn("Github GraphQL error:", result.errors);
             return EMPTY_CALENDAR;
         }
@@ -59,17 +59,52 @@ const fetchContributionCalendar = async (githubUsername) => {
 
 
 const calculateStreak = (calendar) => {
+    const allDays = calendar.weeks.flatMap((week) => week.contributionDays)
+    const daysNewestFirst = allDays.reverse();
 
+    let streak = 0;
+    for (const day of daysNewestFirst) {
+        if (day.contributionCount > 0) {
+            streak = streak + 1;
+        } else {
+            break;
+        }
+    }
+    return streak;
 }
 
 const countLanguages = (repoList) => {
-
+    const languageCounts = {};
+    for (const repo of repoList) {
+        if (repo.language) {
+            const currentCount = languageCounts[repo.language] || 0;
+            languageCounts[repo.language] = currentCount + 1;
+        }
+    }
+    return languageCounts;
 }
 
 const ratingFromRepoCount = (count) => {
-
+    if (count > 5)
+        return 5;
+    if (count >= 3)
+        return 4;
+    if (count === 2)
+        return 3;
+    if (count === 1)
+        return 2;
+    return 1;
 }
 
 const buildAutoRatings = (languageCounts) => {
-
+    const autoRatings = {};
+    for (const language in languageCounts) {
+        const skillName = SYNC_MAP[language];
+        if (!skillName)
+            continue;
+        const suggestedRating = ratingFromRepoCount(languageCounts[language]);
+        const existingRating = autoRatings[skillName] || 0;
+        autoRatings[skillName] = Math.max(existingRating, suggestedRating);
+    }
+    return autoRatings;
 }
