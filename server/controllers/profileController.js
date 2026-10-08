@@ -1,4 +1,4 @@
-import { generateRoadmap, calculateProgress } from "../utils/roadmap";
+import { generateRoadmap, calculateProgress } from "../utils/roadmap.js";
 
 export const getProfile = async (req, res) => {
     res.json({ user: req.user.toProfileJSON() });

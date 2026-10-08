@@ -4,7 +4,7 @@ import { AppContext } from '../context/AppContext'
 
 const Dashboard = () => {
 
-  const { roadmap, completedSkills, skillRatings, selectedCareer, progress } = useContext(AppContext);
+  const { roadmap, skillRatings, selectedCareer, progress } = useContext(AppContext);
   const masteredCount = roadmap.filter((s) => skillRatings[s.name] >= 4).length;
   const totalSkills = roadmap.length;
   const topSkills = roadmap.filter(s => (skillRatings[s.name] || 0) >= 4).map(s => s.name);

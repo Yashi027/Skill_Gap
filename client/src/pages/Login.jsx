@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { useContext } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext'
+import React, { useContext, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 
 const Login = () => {
     const { login } = useContext(AuthContext);
@@ -14,8 +13,10 @@ const Login = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
         setError("");
         setLoading(true);
+
         try {
             await login({ email, password });
             navigate("/");
@@ -24,53 +25,105 @@ const Login = () => {
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6">
-            <form
-                onSubmit={handleSubmit}
-                className="bg-white p-8 rounded-xl shadow border w-full max-w-md"
-            >
-                <h1 className="text-2xl font-bold mb-6">Log in to SkillGap</h1>
+        <div className="fixed inset-0 w-screen h-[100dvh] overflow-hidden">
 
-                {error && <p className="text-red-500 mb-4">{error}</p>}
+            <img
+                src="/SkillGap.png"
+                alt="SkillGap career roadmap"
+                className="absolute inset-0 w-full h-full object-fill"
+            />
 
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full p-3 border rounded-md mb-4 outline-none focus:ring-2 focus:ring-indigo-400"
-                />
+            <div className="absolute inset-0 bg-white/5" />
 
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full p-3 border rounded-md mb-6 outline-none focus:ring-2 focus:ring-indigo-400"
-                />
+            <div className="relative z-10 w-full h-full flex items-center justify-end px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
 
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-indigo-500 text-white py-3 rounded-md hover:bg-indigo-600 transition"
-                >
-                    {loading ? "Logging in..." : "Log in"}
-                </button>
+                <div className="w-full max-w-[400px]">
 
-                <p className="text-sm text-gray-500 mt-4 text-center">
-                    Don't have an account?{" "}
-                    <Link to="/signup" className="text-indigo-600 hover:underline">
-                        Sign up
-                    </Link>
-                </p>
-            </form>
+                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-white/80 p-6 sm:p-8">
+
+                        <h2 className="text-2xl font-bold text-gray-900">
+                            Skill<span className="text-indigo-600">Gap</span>
+                        </h2>
+
+                        <div className="mb-6">
+                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                                Welcome back
+                            </h1>
+
+                            <p className="text-gray-500 mt-2 text-sm sm:text-base">
+                                Login to continue your skill journey.
+                            </p>
+                        </div>
+
+                        {error && (
+                            <div className="mb-5 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+                                <p className="text-sm text-red-600">
+                                    {error}
+                                </p>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmit}>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Email
+                                </label>
+
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="Enter your email"
+                                    required
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white outline-none text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition "
+                                />
+                            </div>
+
+                            <div className="mb-5">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Password
+                                </label>
+
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Enter your password"
+                                    required
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white outline-none text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full py-3 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 active:bg-indigo-800 transition disabled:opacity-60 disabled:cursor-not-allowed "
+                            >
+                                {loading ? "Logging in..." : "Log in"}
+                            </button>
+
+                        </form>
+
+                        <p className="text-sm text-gray-500 text-center mt-5">
+                            Don't have an account?{" "}
+                            <Link
+                                to="/signup"
+                                className="font-semibold text-indigo-600 hover:text-indigo-700 hover:underline"
+                            >
+                                Sign up
+                            </Link>
+                        </p>
+
+                    </div>
+                </div>
+            </div>
         </div>
     );
-}
+};
 
 export default Login;
+

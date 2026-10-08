@@ -5,7 +5,7 @@ import { AppContext } from '../context/AppContext';
 const Quiz = () => {
     const { state } = useLocation();
     const navigate = useNavigate();
-    const { setSkillRatings } = useContext(AppContext);
+    const { setSkillRatings, skillRatings } = useContext(AppContext);
     const { skill, rating } = state;
     const [selectedAnswers, setSelectedAnswers] = useState({});
 
@@ -505,7 +505,7 @@ const Quiz = () => {
                 answer: "JSON"
             }
         ]
-        
+
 
     };
 
@@ -519,10 +519,10 @@ const Quiz = () => {
             }
         });
         if (correctcount === questions.length) {
-            setSkillRatings(prev => ({
-                ...prev,
+            setSkillRatings({
+                ...skillRatings,
                 [skill]: rating
-            }));
+            });
             alert("Congratulations! Full Marks. Rating Updated.");
             navigate('/analysis');
         } else {
@@ -538,24 +538,24 @@ const Quiz = () => {
             <div className='space-y-8'>
                 {questions.map((q, index) => (
                     <div key={index} className='p-6 bg-gray-50 rounded-xl border border-gray-200 shadow-sm'>
-                        <h2 className='font-semibold text-lg text-gray-800 mb-4'>{index+1}. {q.question}</h2>
+                        <h2 className='font-semibold text-lg text-gray-800 mb-4'>{index + 1}. {q.question}</h2>
                         <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                             {q.options.map((opt, i) => (
-                            <button
-                                key={i}
-                                onClick={() => {
-                                    setSelectedAnswers(prev => ({
-                                        ...prev,
-                                        [index]: opt
-                                    }));
-                                }}
-                                className={`block mt-2 px-4 py-2 border rounded-lg transition-all ${selectedAnswers[index] === opt ?
-                                    "bg-indigo-600 text-white border-indigo-600" :
-                                    "bg-white text-gray-700 border-gray-300 hover:border-indigo-400"
-                                    }`}>
-                                {opt}
-                            </button>
-                        ))}
+                                <button
+                                    key={i}
+                                    onClick={() => {
+                                        setSelectedAnswers(prev => ({
+                                            ...prev,
+                                            [index]: opt
+                                        }));
+                                    }}
+                                    className={`block mt-2 px-4 py-2 border rounded-lg transition-all ${selectedAnswers[index] === opt ?
+                                        "bg-indigo-600 text-white border-indigo-600" :
+                                        "bg-white text-gray-700 border-gray-300 hover:border-indigo-400"
+                                        }`}>
+                                    {opt}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 ))}
