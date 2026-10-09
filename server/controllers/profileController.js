@@ -8,13 +8,17 @@ export const setCareer = async (req, res) => {
     try {
         const { selectedCareer } = req.body;
         const allowed = ["", "frontend", "backend", "fullstack"];
+
         if (!allowed.includes(selectedCareer)) {
             return res.status(400).json({ message: "Select valid career path" });
         }
+
         const user = req.user;
         user.selectedCareer = selectedCareer;
+
         const ratings = Object.fromEntries(user.skillRatings || new Map());
         user.roadmap = generateRoadmap(selectedCareer, ratings);
+
         await user.save();
         return res.json({
             user: user.toProfileJSON(),
@@ -33,28 +37,10 @@ export const updateSkillRatings = async (req, res) => {
             return res.status(400).json({ success: false, message: "Skill ratings must be an object" });
         }
 
-        const updates = Object.entries(skillRatings);
-        if (updates.length === 0) {
-            return res.status(400).json({ success: false, message: "Provide at least one skill rating" });
-        }
-
         const user = req.user;
-        const roadmapSkills = new Set((user.roadmap || []).map((item) => item.name));
-        for (const [skill, rating] of updates) {
-            if (!roadmapSkills.has(skill)) {
-                return res.status(400).json({ success: false, message: `Skill is not in your current roadmap: ${skill}` });
-            }
-            if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-                return res.status(400).json({ success: false, message: `Rating for ${skill} must be an integer from 1 to 5` });
-            }
-        }
 
-        for (const [skill, rating] of updates) {
-            user.skillRatings.set(skill, rating);
-        }
-
-        const ratings = Object.fromEntries(user.skillRatings);
-        user.roadmap = generateRoadmap(user.selectedCareer, ratings);
+        user.skillRatings = new Map(Object.entries(skillRatings));
+        user.roadmap = generateRoadmap(user.selectedCareer, skillRatings);
         await user.save();
 
         return res.json({
