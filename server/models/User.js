@@ -78,7 +78,7 @@ userSchema.methods.toProfileJSON = function() {
         name: this.name,
         email: this.email,
         githubUsername: this.githubUsername,
-        selectedCareer: this.selectedCarrer,
+        selectedCareer: this.selectedCareer,
         skillRatings: Object.fromEntries(this.skillRatings || []),
         roadmap: this.roadmap,
         weeklyProgress: this.weeklyProgress,

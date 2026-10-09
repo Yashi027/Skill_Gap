@@ -15,10 +15,10 @@ const SkillAnalysis = () => {
   const handleRatingChange = (skill, rating) => {
     const currentRating = skillRatings[skill] || 0;
     if (rating <= currentRating) {
-      setSkillRatings(prev => ({
-        ...prev,
+      setSkillRatings({
+        ...skillRatings,
         [skill]: rating
-      }));
+      });
       return;
     }
     navigate('/quiz', {

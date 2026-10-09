@@ -8,6 +8,8 @@ const Quiz = () => {
     const { setSkillRatings, skillRatings } = useContext(AppContext);
     const { skill, rating } = state;
     const [selectedAnswers, setSelectedAnswers] = useState({});
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState("");
 
     const quizQuestions = {
         HTML: [
@@ -511,7 +513,7 @@ const Quiz = () => {
 
     const questions = quizQuestions[skill] || [];
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         let correctcount = 0;
         questions.forEach((q, index) => {
             if (selectedAnswers[index] === q.answer) {
@@ -519,12 +521,20 @@ const Quiz = () => {
             }
         });
         if (correctcount === questions.length) {
-            setSkillRatings({
-                ...skillRatings,
-                [skill]: rating
-            });
-            alert("Congratulations! Full Marks. Rating Updated.");
-            navigate('/analysis');
+            setSaving(true);
+            setError("");
+            try {
+                await setSkillRatings({
+                    ...skillRatings,
+                    [skill]: rating
+                });
+                alert("Congratulations! Full Marks. Rating Updated.");
+                navigate('/analysis');
+            } catch (saveError) {
+                setError(saveError.message || "Could not save your rating. Please try again.");
+            } finally {
+                setSaving(false);
+            }
         } else {
             alert(`You scored ${correctcount}/${questions.length}. Full Marks are required.`)
         }
@@ -535,6 +545,7 @@ const Quiz = () => {
             <h1 className='text-3xl font-bold text-center text-indigo-700 mb-6'>
                 {skill} Skill Test
             </h1>
+            {error && <p role="alert" className='text-red-600 mb-4'>{error}</p>}
             <div className='space-y-8'>
                 {questions.map((q, index) => (
                     <div key={index} className='p-6 bg-gray-50 rounded-xl border border-gray-200 shadow-sm'>
@@ -560,8 +571,8 @@ const Quiz = () => {
                     </div>
                 ))}
             </div>
-            <button onClick={handleSubmit} className='bg-indigo-600 text-white px-10 py-3 rounded-lg font-semibold text-lg hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-300 mt-8'>
-                Submit Quiz
+            <button onClick={handleSubmit} disabled={saving} className='bg-indigo-600 text-white px-10 py-3 rounded-lg font-semibold text-lg hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-300 mt-8 disabled:opacity-60 disabled:cursor-not-allowed'>
+                {saving ? "Saving rating..." : "Submit Quiz"}
             </button>
         </div>
     )

@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 const signToken = (id) => 
     jwt.sign({id},process.env.JWT_SECRET,{
         expiresIn: process.env.JWT_EXPIRES_IN || "7d"
-    });
+});
 
 export const register = async (req,res) => {
     try {
@@ -34,6 +34,7 @@ export const register = async (req,res) => {
 export const login = async (req,res) => {
     try {
         const { email, password} = req.body;
+        console.log(email +" "+ password);
         if(!email || !password){
             return res.status(400).json({success: false, message: "Credentials required"});
         }

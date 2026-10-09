@@ -28,7 +28,39 @@ export const setCareer = async (req, res) => {
 
 export const updateSkillRatings = async (req, res) => {
     try {
+        const skillRatings = req.body?.skillRatings;
+        if (!skillRatings || typeof skillRatings !== "object" || Array.isArray(skillRatings)) {
+            return res.status(400).json({ success: false, message: "Skill ratings must be an object" });
+        }
 
+        const updates = Object.entries(skillRatings);
+        if (updates.length === 0) {
+            return res.status(400).json({ success: false, message: "Provide at least one skill rating" });
+        }
+
+        const user = req.user;
+        const roadmapSkills = new Set((user.roadmap || []).map((item) => item.name));
+        for (const [skill, rating] of updates) {
+            if (!roadmapSkills.has(skill)) {
+                return res.status(400).json({ success: false, message: `Skill is not in your current roadmap: ${skill}` });
+            }
+            if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+                return res.status(400).json({ success: false, message: `Rating for ${skill} must be an integer from 1 to 5` });
+            }
+        }
+
+        for (const [skill, rating] of updates) {
+            user.skillRatings.set(skill, rating);
+        }
+
+        const ratings = Object.fromEntries(user.skillRatings);
+        user.roadmap = generateRoadmap(user.selectedCareer, ratings);
+        await user.save();
+
+        return res.json({
+            user: user.toProfileJSON(),
+            progress: calculateProgress(user.roadmap, ratings)
+        });
     } catch (error) {
         console.log(error.message)
         return res.status(500).json({ success: false, message: error.message });
