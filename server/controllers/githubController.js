@@ -1,3 +1,4 @@
+import { detectFrameworks, fetchPackageJson, MAX_REPOS_TO_CHECK } from "../utils/frameworkDetector";
 
 const SYNC_MAP = {
     JavaScript: "JavaScript",
@@ -107,4 +108,34 @@ const buildAutoRatings = (languageCounts) => {
         autoRatings[skillName] = Math.max(existingRating, suggestedRating);
     }
     return autoRatings;
+}
+
+async function detectFrameworksAcrossRepos(githubUsername, repoList, githubToken) {
+    const jsTsRepos = [];
+    for(const repo of repoList){
+        if(repo.language === "JavaScript" || repo.language === "TypeScript"){
+            jsTsRepos.push(repo);
+        }
+    }
+
+    jsTsRepos.sort((repoA, repoB) => {
+        return new Date(repoB.pushed_at) - new Date(repoA.pushed_at);
+    });
+
+    const reposToCheck = jsTsRepos.slice(0,MAX_REPOS_TO_CHECK);
+
+    const frameworksByRepo = {};
+    for(const repo of reposToCheck){
+        const packageJson = await fetchPackageJson(githubUsername, repo.name, githubToken);
+        frameworksByRepo[repo.name] = detectFrameworks(packageJson);
+    }
+    return frameworksByRepo;
+}
+
+export const analyzeGithubUser = async (req,res) => {
+    try {
+        
+    } catch (error) {
+        res.status(500).json({ message: "Failed to analyze GitHub profile", error: error.message });
+    }
 }

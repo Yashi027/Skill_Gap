@@ -37,3 +37,51 @@ const buildSkillEvidence = (repoList, languageToSkillMap, frameworksFound) => {
     }
     return evidence;
 }
+
+function verifySkills(skillRatings, evidence){
+    const result = {};
+    for (const skillName in skillRatings){
+        const rating = skillRatings[skillName];
+        const proof = evidence[skillName];
+
+        if(rating <= 2){
+            result[skillName] = {
+                status: "not-applicable",
+                reason: "Low self-rating - no verification needed"
+            }
+            continue;
+        }
+
+        if(!proof || proof.repoCount === 0){
+            result[skillName] = {
+                status: "unverified",
+                reason: `Rated ${rating}/5 but no Github repos show evidence of ${skillName}`
+            }
+            continue;
+        }
+
+        const daysSinceLastUse = (Date.now() - new Date(proof.lastActivityDate))/ (1000 * 60 * 60 * 24);
+        const monthsSinceLastUse = daysSinceLastUse/30;
+
+        const notEnoughRepos = proof.repoCount < 2;
+        const tooOld = monthsSinceLastUse > 12;
+
+        if(rating >= 4 && (notEnoughRepos || tooOld)){
+            result[skillName] = {
+                status: "weak-evidence",
+                reason: notEnoughRepos
+                ? `Only ${proof.repoCount} repo found for a ${rating}/5 claim.`
+                : `Evidence is over a year old for a ${rating}/5 claim.`
+            }
+            continue;
+        }
+
+        result[skillName] = {
+            status: "verified",
+            reason: `${proof.count} repo(s) on github support this rating`
+        }
+    }
+    return result;
+}
+
+export {buildSkillEvidence, verifySkills};

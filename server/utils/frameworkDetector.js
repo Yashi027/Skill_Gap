@@ -9,6 +9,26 @@ const FRAMEWORK_SKILL_MAP = {
 
 const MAX_REPOS_TO_CHECK = 15;
 
+async function fetchPackageJson(githubUsername, repoName, githubToken) {
+    try {
+        const url = `https://api.github.com/repos/${githubUsername}/${repoName}/contents/package.json`;
+        const headers = {};
+        if (githubToken) {
+            headers.Authorization = "Bearer " + githubToken;
+        }
+        const response = await fetch(url, { headers });
+        if (!response.ok) {
+            return null;
+        }
+
+        const fileInfo = await response.json();
+        const decodedText = Buffer.from(fileInfo.content, "base64").toString("utf-8");
+        return JSON.parse(decodedText);
+    } catch (error) {
+        return "Something went wrong";
+    }
+}
+
 function detectFrameworks(packageJson) {
     const foundSkills = [];
     if (!packageJson) {
@@ -30,4 +50,4 @@ function detectFrameworks(packageJson) {
     return foundSkills;
 }
 
-export { MAX_REPOS_TO_CHECK, detectFrameworks };
+export { MAX_REPOS_TO_CHECK, fetchPackageJson, detectFrameworks };
