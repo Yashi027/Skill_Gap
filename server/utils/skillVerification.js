@@ -78,7 +78,7 @@ function verifySkills(skillRatings, evidence){
 
         result[skillName] = {
             status: "verified",
-            reason: `${proof.count} repo(s) on github support this rating`
+            reason: `${proof.repoCount} repo(s) on GitHub support this rating`
         }
     }
     return result;

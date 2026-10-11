@@ -1,4 +1,6 @@
-import { detectFrameworks, fetchPackageJson, MAX_REPOS_TO_CHECK } from "../utils/frameworkDetector";
+import { detectFrameworks, fetchPackageJson, MAX_REPOS_TO_CHECK } from "../utils/frameworkDetector.js";
+import { buildSkillEvidence, verifySkills } from "../utils/skillVerification.js";
+import CAREER_SKILLS, { generateRoadmap } from "../utils/roadmap.js";
 
 const SYNC_MAP = {
     JavaScript: "JavaScript",
@@ -8,7 +10,7 @@ const SYNC_MAP = {
     React: "React",
     NodeJs: "NodeJs",
     Express: "Express",
-    Mongoose: "Mongoose"
+    Mongoose: "MongoDb"
 }
 
 const EMPTY_CALENDAR = { totalContributions: 0, weeks: [] };
@@ -97,17 +99,30 @@ const ratingFromRepoCount = (count) => {
     return 1;
 }
 
-const buildAutoRatings = (languageCounts) => {
+const buildAutoRatings = (skillEvidence) => {
     const autoRatings = {};
-    for (const language in languageCounts) {
-        const skillName = SYNC_MAP[language];
-        if (!skillName)
-            continue;
-        const suggestedRating = ratingFromRepoCount(languageCounts[language]);
-        const existingRating = autoRatings[skillName] || 0;
-        autoRatings[skillName] = Math.max(existingRating, suggestedRating);
+    for (const [skillName, evidence] of Object.entries(skillEvidence)) {
+        autoRatings[skillName] = ratingFromRepoCount(evidence.repoCount);
     }
     return autoRatings;
+}
+
+const calculateProfileScore = (careerSkills, skillEvidence, analyzedAt = new Date()) => {
+    if (!careerSkills.length) return 0;
+
+    const now = analyzedAt.getTime();
+    const points = careerSkills.reduce((total, skill) => {
+        const evidence = skillEvidence[skill];
+        if (!evidence?.repoCount || !evidence.lastActivityDate) return total;
+
+        // Reward repeat evidence, then give a smaller bonus for recent repository activity.
+        const depthPoints = Math.min(evidence.repoCount / 3, 1) * 70;
+        const ageDays = Math.max(0, (now - new Date(evidence.lastActivityDate).getTime()) / (1000 * 60 * 60 * 24));
+        const freshnessPoints = ageDays <= 180 ? 30 : ageDays <= 365 ? 20 : ageDays <= 730 ? 10 : 0;
+        return total + depthPoints + freshnessPoints;
+    }, 0);
+
+    return Math.round(points / careerSkills.length);
 }
 
 async function detectFrameworksAcrossRepos(githubUsername, repoList, githubToken) {
@@ -134,8 +149,97 @@ async function detectFrameworksAcrossRepos(githubUsername, repoList, githubToken
 
 export const analyzeGithubUser = async (req,res) => {
     try {
-        
+        const githubUsername = req.params.username?.trim();
+        if (!githubUsername) {
+            return res.status(400).json({ message: "GitHub username is required" });
+        }
+
+        const githubToken = process.env.GITHUB_TOKEN;
+        const headers = {
+            Accept: "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        };
+        if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
+
+        const profileResponse = await fetch(`https://api.github.com/users/${encodeURIComponent(githubUsername)}`, { headers });
+        if (profileResponse.status === 404) {
+            return res.status(404).json({ message: "GitHub user not found" });
+        }
+        if (!profileResponse.ok) {
+            return res.status(profileResponse.status === 403 ? 502 : profileResponse.status).json({
+                message: "GitHub API request failed",
+                ...(profileResponse.status === 403 ? { detail: "GitHub API rate limit may have been reached" } : {})
+            });
+        }
+        const profile = await profileResponse.json();
+
+        // Read public repositories in pages so skill evidence covers the user's full public portfolio.
+        const repoList = [];
+        for (let page = 1; ; page += 1) {
+            const reposResponse = await fetch(
+                `https://api.github.com/users/${encodeURIComponent(profile.login)}/repos?type=owner&sort=updated&per_page=100&page=${page}`,
+                { headers }
+            );
+            if (!reposResponse.ok) {
+                return res.status(reposResponse.status === 403 ? 502 : reposResponse.status).json({
+                    message: "Failed to fetch GitHub repositories"
+                });
+            }
+            const reposPage = await reposResponse.json();
+            if (!Array.isArray(reposPage)) {
+                return res.status(502).json({ message: "GitHub returned an invalid repositories response" });
+            }
+            repoList.push(...reposPage);
+            if (reposPage.length < 100) break;
+        }
+
+        const [contributionCalendar, frameworksByRepo] = await Promise.all([
+            fetchContributionCalendar(profile.login),
+            detectFrameworksAcrossRepos(profile.login, repoList, githubToken)
+        ]);
+        const languageCounts = countLanguages(repoList);
+        const skillEvidence = buildSkillEvidence(repoList, SYNC_MAP, frameworksByRepo);
+        const suggestedRatings = buildAutoRatings(skillEvidence);
+        const existingRatings = Object.fromEntries(req.user.skillRatings || new Map());
+        const skillRatings = { ...existingRatings };
+        for (const [skill, rating] of Object.entries(suggestedRatings)) {
+            skillRatings[skill] = Math.max(Number(skillRatings[skill]) || 0, rating);
+        }
+
+        const skillVerification = verifySkills(skillRatings, skillEvidence);
+        const streak = calculateStreak(contributionCalendar);
+        const careerSkills = CAREER_SKILLS[req.user.selectedCareer] || [];
+        const score = calculateProfileScore(careerSkills, skillEvidence);
+
+        req.user.githubUsername = profile.login;
+        req.user.githubData = {
+            login: profile.login,
+            name: profile.name?.trim() || profile.login,
+            avatar: profile.avatar_url,
+            profile_url: profile.html_url,
+            bio: profile.bio,
+            location: profile.location,
+            followers: profile.followers,
+            following: profile.following,
+            repoCount: profile.public_repos,
+            score,
+            skillsWithEvidence: Object.keys(skillEvidence).length,
+            languages: languageCounts,
+            frameworksByRepo,
+            contributionCalendar,
+            streak,
+            analyzedAt: new Date().toISOString()
+        };
+        req.user.skillRatings = new Map(Object.entries(skillRatings));
+        req.user.roadmap = generateRoadmap(req.user.selectedCareer, skillRatings);
+        req.user.skillEvidence = skillEvidence;
+        req.user.skillVerification = skillVerification;
+        req.user.streak = streak;
+        await req.user.save();
+
+        return res.json({ user: req.user.toProfileJSON() });
     } catch (error) {
+        console.error("GitHub profile analysis failed:", error.message);
         res.status(500).json({ message: "Failed to analyze GitHub profile", error: error.message });
     }
 }
