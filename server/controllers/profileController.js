@@ -1,4 +1,5 @@
 import { generateRoadmap, calculateProgress } from "../utils/roadmap.js";
+import { verifySkills } from "../utils/skillVerification.js";
 
 export const getProfile = async (req, res) => {
     res.json({ user: req.user.toProfileJSON() });
@@ -33,7 +34,7 @@ export const setCareer = async (req, res) => {
 export const updateSkillRatings = async (req, res) => {
     try {
         const skillRatings = req.body?.skillRatings;
-        if (!skillRatings || typeof skillRatings !== "object" || Array.isArray(skillRatings)) {
+        if (!skillRatings || typeof skillRatings !== "object") {
             return res.status(400).json({ success: false, message: "Skill ratings must be an object" });
         }
 
@@ -41,11 +42,12 @@ export const updateSkillRatings = async (req, res) => {
 
         user.skillRatings = new Map(Object.entries(skillRatings));
         user.roadmap = generateRoadmap(user.selectedCareer, skillRatings);
+        user.skillVerification = verifySkills(skillRatings, user.skillEvidence || {});
         await user.save();
 
         return res.json({
             user: user.toProfileJSON(),
-            progress: calculateProgress(user.roadmap, ratings)
+            progress: calculateProgress(user.roadmap, skillRatings)
         });
     } catch (error) {
         console.log(error.message)

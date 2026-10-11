@@ -521,20 +521,12 @@ const Quiz = () => {
             }
         });
         if (correctcount === questions.length) {
-            setSaving(true);
-            setError("");
-            try {
-                await setSkillRatings({
-                    ...skillRatings,
-                    [skill]: rating
-                });
-                alert("Congratulations! Full Marks. Rating Updated.");
-                navigate('/analysis');
-            } catch (saveError) {
-                setError(saveError.message || "Could not save your rating. Please try again.");
-            } finally {
-                setSaving(false);
-            }
+            setSkillRatings({
+                ...skillRatings,
+                [skill]: rating
+            });
+            alert("Congratulations! Full Marks. Rating Updated.");
+            navigate('/analysis');
         } else {
             alert(`You scored ${correctcount}/${questions.length}. Full Marks are required.`)
         }

@@ -1,9 +1,10 @@
 import React, { useContext } from 'react'
 import { AppContext } from '../context/AppContext'
 import { useNavigate } from 'react-router-dom'
+import SkillVerification from '../components/SkillVerification'
 
 const SkillAnalysis = () => {
-  const { selectedCareer, setSelectedCareer, skillRatings, setSkillRatings, generateRoadmap } = useContext(AppContext);
+  const { selectedCareer, setSelectedCareer, skillRatings, setSkillRatings, generateRoadmap, skillVerification } = useContext(AppContext);
   const navigate = useNavigate();
 
   const careerSkillMap = {
@@ -34,7 +35,6 @@ const SkillAnalysis = () => {
       alert('Please select a career goal first');
       return;
     }
-    generateRoadmap();
     navigate('/');
   };
 
@@ -75,6 +75,7 @@ const SkillAnalysis = () => {
                 {currentSkills.map((skill) => (
                   <div key={skill} className='flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-gray-50 rounded-lg'>
                     <span className='font-semibold text-gray-700'>{skill}</span>
+                    <SkillVerification verification={skillVerification[skill]} />
                     <div className='flex items-center gap-2'>
                       {
                         [1, 2, 3, 4, 5].map((num) => (

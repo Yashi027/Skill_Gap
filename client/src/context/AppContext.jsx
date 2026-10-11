@@ -4,8 +4,8 @@ import api from "../api/client";
 
 export const AppContext = createContext();
 
-export const AppProvider = ({children}) => {
-    const {user, setUser, isAuthenticated} = useContext(AuthContext);
+export const AppProvider = ({ children }) => {
+    const { user, setUser, isAuthenticated } = useContext(AuthContext);
     const [progress, setProgress] = useState(0);
 
     const selectedCareer = user?.selectedCareer || "";
@@ -17,38 +17,38 @@ export const AppProvider = ({children}) => {
     const skillVerification = user?.skillVerification || {};
 
     useEffect(() => {
-        if(roadmap.length > 0){
+        if (roadmap.length > 0) {
             const completed = roadmap.filter((item) => skillRatings[item.name] === 5).length;
-            setProgress(Math.round((completed/roadmap.length)*100));
-        }else{
+            setProgress(Math.round((completed / roadmap.length) * 100));
+        } else {
             setProgress(0);
         }
-    },[roadmap,skillRatings]);
+    }, [roadmap, skillRatings]);
 
     const setSelectedCareer = async (career) => {
-        if(!isAuthenticated)
+        if (!isAuthenticated)
             return;
-        const data = await api("/profile/career",{
+        const data = await api("/profile/career", {
             method: "PATCH",
-            body:{ selectedCareer: career}
+            body: { selectedCareer: career }
         });
         setUser(data.user);
     }
 
     const setSkillRatings = async (newRatings) => {
-        if(!isAuthenticated)
+        if (!isAuthenticated)
             return;
-        const data = await api("/profile/skills",{
+        const response = await api("/profile/skills", {
             method: "PATCH",
-            body : {
+            body: {
                 skillRatings: newRatings
             }
         })
-        setUser(data.user);
+        setUser(response.user);
     }
 
     const fetchGithubData = async (username) => {
-        if(!isAuthenticated){
+        if (!isAuthenticated) {
             throw new Error("Please log in first.");
         }
         const data = await api(`/github/${encodeURIComponent(username)}`);
@@ -56,21 +56,21 @@ export const AppProvider = ({children}) => {
         return data.user.githubData;
     }
 
-    return(
-        <AppContext.Provider 
-        value={{
-            selectedCareer,
-            skillRatings,
-            githubData,
-            skillVerification,
-            roadmap,
-            progress,
-            weeklyProgress,
-            streak,
-            fetchGithubData,
-            setSelectedCareer,
-            setSkillRatings
-        }}>
+    return (
+        <AppContext.Provider
+            value={{
+                selectedCareer,
+                skillRatings,
+                githubData,
+                skillVerification,
+                roadmap,
+                progress,
+                weeklyProgress,
+                streak,
+                fetchGithubData,
+                setSelectedCareer,
+                setSkillRatings
+            }}>
             {children}
         </AppContext.Provider>
     )

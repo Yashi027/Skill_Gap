@@ -1,9 +1,10 @@
 import React, { useContext, useState } from 'react';
 import { AppContext } from '../context/AppContext';
+import SkillVerification from '../components/SkillVerification';
 
 const Roadmap = () => {
 
-  const { roadmap, progress, streak, selectedCareer, skillRatings } = useContext(AppContext);
+  const { roadmap, progress, streak, selectedCareer, skillRatings, skillVerification } = useContext(AppContext);
   const [filter, setFilter] = useState("all");
 
   const completedSet = new Set(
@@ -95,7 +96,10 @@ const Roadmap = () => {
                     <div className={`w-4 h-4 mt-2 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-gray-300'}`}></div>
 
                     <div>
-                      <h3 className='text-lg font-semibold text-gray-800'>{skill.name}</h3>
+                      <div className='flex items-center gap-2'>
+                        <h3 className='text-lg font-semibold text-gray-800'>{skill.name}</h3>
+                        <SkillVerification verification={skillVerification[skill.name]} />
+                      </div>
 
                       <div className='flex gap-2 mt-2'>
                         <span className='text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded'>

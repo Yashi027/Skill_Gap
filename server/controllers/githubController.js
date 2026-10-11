@@ -76,6 +76,25 @@ const calculateStreak = (calendar) => {
     return streak;
 }
 
+const calculateWeeklyProgress = (calendar) => {
+    const allDays = (calendar.weeks || []).flatMap((week) => week.contributionDays || []);
+
+    const contributionsByDate = new Map(allDays.map((day) => [day.date, day.contributionCount]))
+
+    const weeklyProgress = [];
+
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setUTCHours(0, 0, 0, 0);
+        date.setUTCDate(date.getUTCDate() - i);
+
+        const dateKey = date.toISOString().slice(0, 10);
+
+        weeklyProgress.push(contributionsByDate.get(dateKey) ?? 0);
+    }
+    return weeklyProgress;
+}
+
 const countLanguages = (repoList) => {
     const languageCounts = {};
     for (const repo of repoList) {
@@ -115,7 +134,6 @@ const calculateProfileScore = (careerSkills, skillEvidence, analyzedAt = new Dat
         const evidence = skillEvidence[skill];
         if (!evidence?.repoCount || !evidence.lastActivityDate) return total;
 
-        // Reward repeat evidence, then give a smaller bonus for recent repository activity.
         const depthPoints = Math.min(evidence.repoCount / 3, 1) * 70;
         const ageDays = Math.max(0, (now - new Date(evidence.lastActivityDate).getTime()) / (1000 * 60 * 60 * 24));
         const freshnessPoints = ageDays <= 180 ? 30 : ageDays <= 365 ? 20 : ageDays <= 730 ? 10 : 0;
@@ -127,8 +145,8 @@ const calculateProfileScore = (careerSkills, skillEvidence, analyzedAt = new Dat
 
 async function detectFrameworksAcrossRepos(githubUsername, repoList, githubToken) {
     const jsTsRepos = [];
-    for(const repo of repoList){
-        if(repo.language === "JavaScript" || repo.language === "TypeScript"){
+    for (const repo of repoList) {
+        if (repo.language === "JavaScript" || repo.language === "TypeScript") {
             jsTsRepos.push(repo);
         }
     }
@@ -137,17 +155,17 @@ async function detectFrameworksAcrossRepos(githubUsername, repoList, githubToken
         return new Date(repoB.pushed_at) - new Date(repoA.pushed_at);
     });
 
-    const reposToCheck = jsTsRepos.slice(0,MAX_REPOS_TO_CHECK);
+    const reposToCheck = jsTsRepos.slice(0, MAX_REPOS_TO_CHECK);
 
     const frameworksByRepo = {};
-    for(const repo of reposToCheck){
+    for (const repo of reposToCheck) {
         const packageJson = await fetchPackageJson(githubUsername, repo.name, githubToken);
         frameworksByRepo[repo.name] = detectFrameworks(packageJson);
     }
     return frameworksByRepo;
 }
 
-export const analyzeGithubUser = async (req,res) => {
+export const analyzeGithubUser = async (req, res) => {
     try {
         const githubUsername = req.params.username?.trim();
         if (!githubUsername) {
@@ -173,7 +191,6 @@ export const analyzeGithubUser = async (req,res) => {
         }
         const profile = await profileResponse.json();
 
-        // Read public repositories in pages so skill evidence covers the user's full public portfolio.
         const repoList = [];
         for (let page = 1; ; page += 1) {
             const reposResponse = await fetch(
@@ -208,6 +225,7 @@ export const analyzeGithubUser = async (req,res) => {
 
         const skillVerification = verifySkills(skillRatings, skillEvidence);
         const streak = calculateStreak(contributionCalendar);
+        const weeklyProgress = calculateWeeklyProgress(contributionCalendar);
         const careerSkills = CAREER_SKILLS[req.user.selectedCareer] || [];
         const score = calculateProfileScore(careerSkills, skillEvidence);
 
@@ -228,6 +246,7 @@ export const analyzeGithubUser = async (req,res) => {
             frameworksByRepo,
             contributionCalendar,
             streak,
+            weeklyProgress,
             analyzedAt: new Date().toISOString()
         };
         req.user.skillRatings = new Map(Object.entries(skillRatings));
@@ -235,6 +254,7 @@ export const analyzeGithubUser = async (req,res) => {
         req.user.skillEvidence = skillEvidence;
         req.user.skillVerification = skillVerification;
         req.user.streak = streak;
+        req.user.weeklyProgress = weeklyProgress;
         await req.user.save();
 
         return res.json({ user: req.user.toProfileJSON() });

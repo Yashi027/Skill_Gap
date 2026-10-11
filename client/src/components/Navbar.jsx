@@ -63,7 +63,7 @@ const Navbar = () => {
                 alt="Profile"
                 className="h-11 w-11 rounded-full border border-gray-300 object-cover" />
               <div className="hidden md:block">
-                <p className="text-sm font-semibold text-gray-800">User</p>
+                <p className="text-sm font-semibold text-gray-800">{user.name ? user.name : "User"}</p>
                 <p className="text-xs text-gray-500">Developer</p>
               </div>
             </div>
