@@ -1,13 +1,16 @@
-const FRAMEWORK_SKILL_MAP = {
-    "react": "React",
-    "react-dom": "React",
-    "redux": "Redux",
-    "react-redux": "Redux",
-    "express": "Express",
-    "mongoose": "MongoDb"
-}
+import {
+    LANGUAGE_RULES, DEPENDENCY_RULES, NODE_BACKEND_DEPS, API_DESIGN_DEPS
+} from "./skills.js";
 
 const MAX_REPOS_TO_CHECK = 15;
+const CONCURRENCY = 3;
+
+function githubHeaders(token){
+    const headers = {Accept: "application/vnd.github+json"};
+    if(token)
+        headers.Authorization = "Bearer " + token;
+    return headers;
+}
 
 async function fetchPackageJson(githubUsername, repoName, githubToken) {
     try {

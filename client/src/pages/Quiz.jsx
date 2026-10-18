@@ -175,7 +175,7 @@ const Quiz = () => {
         JavaScript: [
             {
                 question: "Which Data Type is not primitive?",
-                options: ["Sttring", "Number", "Object"],
+                options: ["String", "Number", "Object","Boolean"],
                 answer: "Object"
             },
             {
