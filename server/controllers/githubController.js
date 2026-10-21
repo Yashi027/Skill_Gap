@@ -1,17 +1,10 @@
-import { detectFrameworks, fetchPackageJson, MAX_REPOS_TO_CHECK } from "../utils/frameworkDetector.js";
-import { buildSkillEvidence, verifySkills } from "../utils/skillVerification.js";
-import CAREER_SKILLS, { generateRoadmap } from "../utils/roadmap.js";
+import { analyzeRepos } from "../utils/frameworkDetector.js";
+import { buildSkillEvidence, buildAutoRatings, verifySkills } from "../utils/skillVerification.js";
+import { generateRoadmap } from "../utils/roadmap.js";
+import { CAREER_SKILLS, normalizeSkillObject } from "../utils/skills.js";
 
-const SYNC_MAP = {
-    JavaScript: "JavaScript",
-    TypeScript: "JavaScript",
-    HTML: "HTML",
-    CSS: "CSS",
-    React: "React",
-    NodeJs: "NodeJs",
-    Express: "Express",
-    Mongoose: "MongoDb"
-}
+
+const GITHUB_USERNAME_REGEX = /^[a-z\d](?:[a-z\d-]{0,38})$/i;
 
 const EMPTY_CALENDAR = { totalContributions: 0, weeks: [] };
 
@@ -106,25 +99,6 @@ const countLanguages = (repoList) => {
     return languageCounts;
 }
 
-const ratingFromRepoCount = (count) => {
-    if (count > 5)
-        return 5;
-    if (count >= 3)
-        return 4;
-    if (count === 2)
-        return 3;
-    if (count === 1)
-        return 2;
-    return 1;
-}
-
-const buildAutoRatings = (skillEvidence) => {
-    const autoRatings = {};
-    for (const [skillName, evidence] of Object.entries(skillEvidence)) {
-        autoRatings[skillName] = ratingFromRepoCount(evidence.repoCount);
-    }
-    return autoRatings;
-}
 
 const calculateProfileScore = (careerSkills, skillEvidence, analyzedAt = new Date()) => {
     if (!careerSkills.length) return 0;
@@ -143,43 +117,23 @@ const calculateProfileScore = (careerSkills, skillEvidence, analyzedAt = new Dat
     return Math.round(points / careerSkills.length);
 }
 
-async function detectFrameworksAcrossRepos(githubUsername, repoList, githubToken) {
-    const jsTsRepos = [];
-    for (const repo of repoList) {
-        if (repo.language === "JavaScript" || repo.language === "TypeScript") {
-            jsTsRepos.push(repo);
-        }
-    }
-
-    jsTsRepos.sort((repoA, repoB) => {
-        return new Date(repoB.pushed_at) - new Date(repoA.pushed_at);
-    });
-
-    const reposToCheck = jsTsRepos.slice(0, MAX_REPOS_TO_CHECK);
-
-    const frameworksByRepo = {};
-    for (const repo of reposToCheck) {
-        const packageJson = await fetchPackageJson(githubUsername, repo.name, githubToken);
-        frameworksByRepo[repo.name] = detectFrameworks(packageJson);
-    }
-    return frameworksByRepo;
-}
-
 export const analyzeGithubUser = async (req, res) => {
     try {
         const githubUsername = req.params.username?.trim();
         if (!githubUsername) {
             return res.status(400).json({ message: "GitHub username is required" });
         }
+        if (!GITHUB_USERNAME_REGEX.test(githubUsername)) {
+            return res.status(400).json({ success: false, message: "Invalid github username" })
+        }
 
         const githubToken = process.env.GITHUB_TOKEN;
         const headers = {
-            Accept: "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28"
+            Accept: "application/vnd.github+json"
         };
         if (githubToken) headers.Authorization = `Bearer ${githubToken}`;
 
-        const profileResponse = await fetch(`https://api.github.com/users/${encodeURIComponent(githubUsername)}`, { headers });
+        const profileResponse = await fetch(`https://api.github.com/users/${githubUsername}`, { headers });
         if (profileResponse.status === 404) {
             return res.status(404).json({ message: "GitHub user not found" });
         }
@@ -210,29 +164,35 @@ export const analyzeGithubUser = async (req, res) => {
             if (reposPage.length < 100) break;
         }
 
-        const [contributionCalendar, frameworksByRepo] = await Promise.all([
-            fetchContributionCalendar(profile.login),
-            detectFrameworksAcrossRepos(profile.login, repoList, githubToken)
-        ]);
-        const languageCounts = countLanguages(repoList);
-        const skillEvidence = buildSkillEvidence(repoList, SYNC_MAP, frameworksByRepo);
-        const suggestedRatings = buildAutoRatings(skillEvidence);
-        const existingRatings = Object.fromEntries(req.user.skillRatings || new Map());
+        const repoData = await reposResponse.json();
+
+        if (!Array.isArray(repoData)) {
+            return res.status(502).json({ message: "Unexpected response from Github" })
+        }
+
+        const calendar = await fetchContributionCalendar(username);
+        const streak = calculateStreak(calendar);
+
+        const languageCounts = countLanguages(repoData);
+        const skillByrepo = await analyzeRepos(username, repoData, githubToken);
+        const evidence = buildSkillEvidence(repoData, skillByrepo);
+        const suggestedRatings = buildAutoRatings(evidence);
+
+        const existingRatings = normalizeSkillObject(Object.fromEntries(req.user.skillRatings || new Map()));
         const skillRatings = { ...existingRatings };
         for (const [skill, rating] of Object.entries(suggestedRatings)) {
             skillRatings[skill] = Math.max(Number(skillRatings[skill]) || 0, rating);
         }
 
         const skillVerification = verifySkills(skillRatings, skillEvidence);
-        const streak = calculateStreak(contributionCalendar);
-        const weeklyProgress = calculateWeeklyProgress(contributionCalendar);
+        const weeklyProgress = calculateWeeklyProgress(calendar);
         const careerSkills = CAREER_SKILLS[req.user.selectedCareer] || [];
-        const score = calculateProfileScore(careerSkills, skillEvidence);
+        const score = calculateProfileScore(careerSkills, evidence);
 
         req.user.githubUsername = profile.login;
         req.user.githubData = {
             login: profile.login,
-            name: profile.name?.trim() || profile.login,
+            name: profile.name || "User",
             avatar: profile.avatar_url,
             profile_url: profile.html_url,
             bio: profile.bio,
@@ -244,7 +204,7 @@ export const analyzeGithubUser = async (req, res) => {
             skillsWithEvidence: Object.keys(skillEvidence).length,
             languages: languageCounts,
             frameworksByRepo,
-            contributionCalendar,
+            calendar,
             streak,
             weeklyProgress,
             analyzedAt: new Date().toISOString()

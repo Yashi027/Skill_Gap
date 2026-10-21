@@ -5,6 +5,7 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js"
 import profileRouter from "./routes/profileRoutes.js";
 import gitRouter from "./routes/githubRoutes.js";
+import skillRouter from "./routes/skillRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -20,7 +21,8 @@ app.use(express.json())
 
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRouter);
-app.use('/api/github', gitRouter)
+app.use('/api/github', gitRouter);
+app.use("/api/skills", skillRouter);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log("SkillGap APi running"));
